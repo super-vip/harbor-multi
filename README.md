@@ -43,4 +43,3 @@ cp harbor.yml.tmpl harbor.yml
 ```
 ./install.sh
 ```
-
