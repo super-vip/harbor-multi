@@ -20,6 +20,7 @@ jobs:
       - name: Check for new Harbor releases
         id: check_release
         run: |
+          python <<EOF
           import requests
           import os
 
@@ -49,6 +50,7 @@ jobs:
               print("No new release found.")
               print(f"::set-output name=new_release::")
               print(f"::set-output name=email_body::")
+          EOF
 
       - name: Send email if new release
         if: steps.check_release.outputs.new_release
