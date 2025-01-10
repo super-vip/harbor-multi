@@ -21,11 +21,12 @@ jobs:
         python-version: '3.x'
 
     - name: Install Dependencies
-      run: pip install requests smtplib jinja2
+      run: pip install requests jinja2
 
     - name: Check for New Releases
       id: check_new_release
       run: |
+        python <<EOF
         import requests
         import os
 
@@ -65,19 +66,23 @@ jobs:
         print(f"New release found: {latest_tag}")
         print(f"::set-output name=new_tag::{latest_tag}")
         print(f"::set-output name=release_notes::{release_notes}")
+        EOF
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Load Email Template
       id: load_template
       run: |
+        python <<EOF
         with open('.github/email.html', 'r') as f:
             template = f.read()
         print(f"::set-output name=email_template::{template}")
+        EOF
 
     - name: Send Email Notification
       if: steps.check_new_release.outputs.new_tag
       run: |
+        python <<EOF
         import smtplib
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
@@ -108,6 +113,7 @@ jobs:
         with smtplib.SMTP_SSL('smtp.163.com', 465) as server:
             server.login(sender, password)
             server.sendmail(sender, recipient, msg.as_string())
+        EOF
       env:
         EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
