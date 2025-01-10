@@ -1,123 +1,186 @@
-name: Check Harbor Releases
+name: Check Harbor Release
 
 on:
-  # 定时运行：每天 UTC 时间的凌晨 2 点
   schedule:
-    - cron: '0 2 * * *'
-  # 手动触发
-  workflow_dispatch:
+    - cron: "0 8 * * *" # 每天 UTC 时间早上 8 点运行
+  workflow_dispatch: # 手动触发
 
 jobs:
-  check-releases:
+  check-harbor-release:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Install Dependencies
-      run: pip install requests jinja2
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests jinja2
 
-    - name: Check for New Releases
-      id: check_new_release
-      run: |
-        python <<EOF
-        import requests
-        import os
+      - name: Check for New Harbor Release
+        env:
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        run: |
+          python <<EOF
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from jinja2 import Template
+import os
 
-        # 获取之前的最新版本
-        previous_tag_file = '.previous_tag'
-        if os.path.exists(previous_tag_file):
-            with open(previous_tag_file, 'r') as f:
-                previous_tag = f.read().strip()
-        else:
-            previous_tag = None
+# 检查新版本
+HARBOR_RELEASES_URL = "https://api.github.com/repos/goharbor/harbor/releases"
+RELEASE_TRACK_FILE = ".harbor_latest_release.txt"
 
-        # 检查 Harbor 官方仓库的发布信息
-        url = 'https://api.github.com/repos/goharbor/harbor/releases'
-        response = requests.get(url)
-        response.raise_for_status()
-        releases = response.json()
+response = requests.get(HARBOR_RELEASES_URL)
+releases = response.json()
 
-        # 筛选出正式版本（不包含 pre-release 和 draft）
-        stable_releases = [r for r in releases if not r['prerelease'] and not r['draft']]
-        latest_release = stable_releases[0] if stable_releases else None
+if not releases or "tag_name" not in releases[0]:
+    print("No releases found or API response invalid.")
+    exit(1)
 
-        if not latest_release:
-            print("No stable releases found.")
-            exit(0)
+new_release = releases[0]
+new_tag = new_release["tag_name"]
+release_notes = new_release.get("body", "No release notes provided.")
 
-        latest_tag = latest_release['tag_name']
-        release_notes = latest_release['body']
+# 检查是否为新版本
+if os.path.exists(RELEASE_TRACK_FILE):
+    with open(RELEASE_TRACK_FILE, "r") as f:
+        last_tag = f.read().strip()
+else:
+    last_tag = ""
 
-        if previous_tag == latest_tag:
-            print(f"No new release. Latest tag: {latest_tag}")
-            exit(0)
+if new_tag == last_tag:
+    print(f"No new release detected. Latest release is still {last_tag}.")
+    exit(0)
 
-        # 保存最新版本到文件
-        with open(previous_tag_file, 'w') as f:
-            f.write(latest_tag)
+# 保存最新版本号
+with open(RELEASE_TRACK_FILE, "w") as f:
+    f.write(new_tag)
 
-        print(f"New release found: {latest_tag}")
-        print(f"::set-output name=new_tag::{latest_tag}")
-        print(f"::set-output name=release_notes::{release_notes}")
-        EOF
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+# 发送邮件
+email_template = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Harbor Release</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      text-align: center;
+      background-color: #007acc;
+      color: #fff;
+      padding: 10px 0;
+      border-radius: 8px 8px 0 0;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .content {
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .content h2 {
+      color: #007acc;
+    }
+    .button {
+      display: inline-block;
+      padding: 10px 15px;
+      margin-top: 20px;
+      background-color: #007acc;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #aaa;
+    }
+    .footer a {
+      color: #007acc;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 New Harbor Release!</h1>
+    </div>
+    <div class="content">
+      <h2>New Release Detected</h2>
+      <p>
+        A new version of Harbor has been released. Here are the details:
+      </p>
+      <p>
+        <strong>Version:</strong> {{ TAG_NAME }}<br>
+        <strong>Release Notes:</strong><br>
+        {{ RELEASE_NOTES }}
+      </p>
+      <a href="https://github.com/goharbor/harbor/releases/tag/{{ TAG_NAME }}" class="button">
+        View Release
+      </a>
+    </div>
+    <div class="footer">
+      <p>
+        This email was generated by GitHub Actions. 
+        <a href="https://github.com/goharbor/harbor">Check out the repository</a>.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+"""
 
-    - name: Load Email Template
-      id: load_template
-      run: |
-        python <<EOF
-        with open('.github/email.html', 'r') as f:
-            template = f.read()
-        print(f"::set-output name=email_template::{template}")
-        EOF
+template = Template(email_template)
+html_content = template.render(TAG_NAME=new_tag, RELEASE_NOTES=release_notes)
 
-    - name: Send Email Notification
-      if: steps.check_new_release.outputs.new_tag
-      run: |
-        python <<EOF
-        import smtplib
-        import os
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        from jinja2 import Template
+# 邮件信息
+sender = os.getenv('EMAIL_USERNAME')
+password = os.getenv('EMAIL_PASSWORD')
+recipient = "llswdhh@163.com"
+subject = f"🚀 New Harbor Release: {new_tag}"
 
-        # 获取新的版本信息
-        new_tag = "${{ steps.check_new_release.outputs.new_tag }}"
-        release_notes = "${{ steps.check_new_release.outputs.release_notes }}"
-        email_template = """${{ steps.load_template.outputs.email_template }}"""
+msg = MIMEMultipart('alternative')
+msg['From'] = sender
+msg['To'] = recipient
+msg['Subject'] = subject
+msg.attach(MIMEText(html_content, 'html'))
 
-        # 加载 HTML 模板
-        template = Template(email_template)
-        html_content = template.render(TAG_NAME=new_tag, RELEASE_NOTES=release_notes)
+# 发送邮件
+with smtplib.SMTP_SSL('smtp.163.com', 465) as server:
+    server.login(sender, password)
+    server.sendmail(sender, recipient, msg.as_string())
+print(f"Email sent successfully for release {new_tag}.")
+EOF
 
-        # 设置邮件信息
-        sender = os.getenv('EMAIL_USERNAME')
-        password = os.getenv('EMAIL_PASSWORD')
-        recipient = "llswdhh@163.com"
-        subject = f"🚀 New Harbor Release: {new_tag}"
-
-        msg = MIMEMultipart('alternative')
-        msg['From'] = sender
-        msg['To'] = recipient
-        msg['Subject'] = subject
-        msg.attach(MIMEText(html_content, 'html'))
-
-        # 发送邮件
-        with smtplib.SMTP_SSL('smtp.163.com', 465) as server:
-            server.login(sender, password)
-            server.sendmail(sender, recipient, msg.as_string())
-        EOF
-      env:
-        EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
-        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
 
 
 
