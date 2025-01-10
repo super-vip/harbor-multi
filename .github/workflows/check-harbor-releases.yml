@@ -105,7 +105,7 @@ jobs:
 
         msg = MIMEMultipart('alternative')
         msg['From'] = sender
-        msg['To'] = llswdhh@163.com
+        msg['To'] = recipient
         msg['Subject'] = subject
         msg.attach(MIMEText(html_content, 'html'))
 
