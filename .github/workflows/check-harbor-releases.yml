@@ -18,8 +18,8 @@ jobs:
         run: pip install requests
 
       - name: Check for new Harbor releases
-      id: check_release
-      run: |
+        id: check_release
+        run: |
           python <<EOF
           import requests
           import os
