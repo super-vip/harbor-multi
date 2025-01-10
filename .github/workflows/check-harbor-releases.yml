@@ -1,14 +1,11 @@
 name: Check Harbor Release
-
 on:
   schedule:
-    - cron: "0 8 * * *" # 每天 UTC 时间早上 8 点运行
-  workflow_dispatch: # 手动触发
-
+    - cron: "0 */8 * * *"
+  workflow_dispatch:
 jobs:
   check-harbor-release:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -180,83 +177,3 @@ jobs:
               server.sendmail(sender, recipient, msg.as_string())
           print(f"Email sent successfully for release {new_tag}.")
           EOF
-
-
-
-
-
-
-
-# name: Check Harbor Releases
-
-# on:
-#   schedule:
-#     - cron: "0 * * * *"  # 每小时运行一次
-#   workflow_dispatch:  # 手动触发支持
-
-# jobs:
-#   check-harbor-releases:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Set up Python
-#         uses: actions/setup-python@v4
-#         with:
-#           python-version: '3.x'
-
-#       - name: Install dependencies
-#         run: pip install requests
-
-#       - name: Check for new Harbor releases
-#         id: check_release
-#         run: |
-#           python <<EOF
-#           import requests
-#           import os
-
-#           # 获取最近发布的正式版本
-#           url = "https://api.github.com/repos/goharbor/harbor/releases"
-#           response = requests.get(url)
-#           response.raise_for_status()
-#           releases = response.json()
-
-#           # 读取上次检查的版本 (GitHub Actions 环境变量存储)
-#           last_checked_version = os.environ.get("LAST_CHECKED_VERSION", "")
-#           latest_release = next((r for r in releases if not r['prerelease'] and not r['draft']), None)
-
-#           if latest_release and latest_release["tag_name"] != last_checked_version:
-#               print(f"New release found: {latest_release['tag_name']}")
-              
-#               # 读取 .github/email.html 模板
-#               email_template_path = os.path.join(os.getenv("GITHUB_WORKSPACE"), ".github", "email.html")
-#               with open(email_template_path, "r") as f:
-#                   email_template = f.read()
-
-#               # 替换模板中的占位符
-#               email_body = email_template.replace("{{TAG_NAME}}", latest_release["tag_name"])
-#               email_body = email_body.replace("{{RELEASE_NOTES}}", latest_release["body"])
-
-#               print(f"::set-output name=email_body::{email_body}")
-#               print(f"::set-output name=new_release::{latest_release['tag_name']}")
-#           else:
-#               print("No new release found.")
-#               print(f"::set-output name=new_release::")
-#               print(f"::set-output name=email_body::")
-#           EOF
-
-#       - name: Send email if new release
-#         if: steps.check_release.outputs.new_release
-#         uses: dawidd6/action-send-mail@v3
-#         with:
-#           server_address: smtp.163.com
-#           server_port: 465
-#           username: ${{ secrets.EMAIL_USERNAME }}
-#           password: ${{ secrets.EMAIL_PASSWORD }}
-#           subject: "🚀 New Harbor Release: ${{ steps.check_release.outputs.new_release }}"
-#           to: llswdhh@163.com
-#           from: ${{ secrets.EMAIL_USERNAME }}
-#           content_type: "text/html"
-#           body: ${{ steps.check_release.outputs.email_body }}
-
-#       - name: Save latest checked release
-#         if: steps.check_release.outputs.new_release
-#         run: echo "LAST_CHECKED_VERSION=${{ steps.check_release.outputs.new_release }}" >> $GITHUB_ENV
