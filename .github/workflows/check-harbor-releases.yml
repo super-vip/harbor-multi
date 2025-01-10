@@ -100,7 +100,7 @@ jobs:
         # 设置邮件信息
         sender = os.getenv('EMAIL_USERNAME')
         password = os.getenv('EMAIL_PASSWORD')
-        recipient = "your_email@example.com"
+        recipient = "llswdhh@163.com"
         subject = f"🚀 New Harbor Release: {new_tag}"
 
         msg = MIMEMultipart('alternative')
