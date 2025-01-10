@@ -36,8 +36,10 @@ jobs:
 
           if latest_release and latest_release["tag_name"] != last_checked_version:
               print(f"New release found: {latest_release['tag_name']}")
+              
               # 读取 .github/email.html 模板
-              with open(".github/email.html", "r") as f:
+              email_template_path = os.path.join(os.getenv("GITHUB_WORKSPACE"), ".github", "email.html")
+              with open(email_template_path, "r") as f:
                   email_template = f.read()
 
               # 替换模板中的占位符
@@ -69,7 +71,6 @@ jobs:
       - name: Save latest checked release
         if: steps.check_release.outputs.new_release
         run: echo "LAST_CHECKED_VERSION=${{ steps.check_release.outputs.new_release }}" >> $GITHUB_ENV
-
 
 
 # name: Check Harbor Releases
