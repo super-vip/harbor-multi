@@ -1,0 +1,51 @@
+name: Check Version and Run Check Harbor Releases
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the repository
+      uses: actions/checkout@v2
+
+    - name: Get the version from the VERSION file
+      id: get_version
+      run: |
+        VERSION_FILE="VERSION"
+        if [ -f "$VERSION_FILE" ]; then
+          VERSION=$(cat "$VERSION_FILE")
+          echo "VERSION from file: $VERSION"
+          echo "::set-output name=version::$VERSION"
+        else
+          echo "VERSION file not found."
+          exit 1
+        fi
+
+    - name: Get the latest official version from GitHub releases
+      id: get_latest_release
+      run: |
+        LATEST_RELEASE=$(curl --silent "https://api.github.com/repos/goharbor/harbor/releases/latest" | jq -r .tag_name)
+        echo "Latest release: $LATEST_RELEASE"
+        echo "::set-output name=latest_release::$LATEST_RELEASE"
+
+    - name: Compare versions and conditionally trigger check-harbor-releases.yml
+      id: compare_versions
+      run: |
+        VERSION_FILE_VERSION="${{ steps.get_version.outputs.version }}"
+        LATEST_RELEASE="${{ steps.get_latest_release.outputs.latest_release }}"
+
+        echo "Comparing versions: $VERSION_FILE_VERSION vs $LATEST_RELEASE"
+
+        if [ "$VERSION_FILE_VERSION" == "$LATEST_RELEASE" ]; then
+          echo "Versions are the same, skipping check-harbor-releases.yml"
+        else
+          echo "Versions differ, triggering check-harbor-releases.yml"
+          # Trigger the check-harbor-releases.yml workflow
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.TOKEN }}" \
+            -d '{"ref": "main"}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/check-harbor-releases.yml/dispatches
+        fi
