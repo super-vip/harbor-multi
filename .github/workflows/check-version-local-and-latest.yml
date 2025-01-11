@@ -1,6 +1,8 @@
 name: Check Version and Run Check Harbor Releases
 
 on:
+  schedule:
+    - cron: "0 */8 * * *"
   workflow_dispatch:
 
 jobs:
@@ -40,10 +42,10 @@ jobs:
         echo "Comparing versions: $VERSION_FILE_VERSION vs $LATEST_RELEASE"
 
         if [ "$VERSION_FILE_VERSION" == "$LATEST_RELEASE" ]; then
-          echo "Versions are the same, skipping check-harbor-releases.yml"
+          echo "Versions are the same, skipping Don't Sed Email"
         else
-          echo "Versions differ, triggering check-harbor-releases.yml"
-          # Trigger the check-harbor-releases.yml workflow
+          echo "Versions differ, Start Pushing Emails"
+          # 调用check-harbor-releases.yml
           curl -X POST \
             -H "Authorization: token ${{ secrets.TOKEN }}" \
             -d '{"ref": "main"}' \
