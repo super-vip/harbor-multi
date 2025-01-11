@@ -18,7 +18,7 @@ jobs:
         if [ -f "$VERSION_FILE" ]; then
           VERSION=$(cat "$VERSION_FILE")
           echo "VERSION from file: $VERSION"
-          echo "::set-output name=version::$VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
         else
           echo "VERSION file not found."
           exit 1
@@ -29,13 +29,13 @@ jobs:
       run: |
         LATEST_RELEASE=$(curl --silent "https://api.github.com/repos/goharbor/harbor/releases/latest" | jq -r .tag_name)
         echo "Latest release: $LATEST_RELEASE"
-        echo "::set-output name=latest_release::$LATEST_RELEASE"
+        echo "LATEST_RELEASE=$LATEST_RELEASE" >> $GITHUB_ENV
 
     - name: Compare versions and conditionally trigger check-harbor-releases.yml
       id: compare_versions
       run: |
-        VERSION_FILE_VERSION="${{ steps.get_version.outputs.version }}"
-        LATEST_RELEASE="${{ steps.get_latest_release.outputs.latest_release }}"
+        VERSION_FILE_VERSION="${{ env.VERSION }}"
+        LATEST_RELEASE="${{ env.LATEST_RELEASE }}"
 
         echo "Comparing versions: $VERSION_FILE_VERSION vs $LATEST_RELEASE"
 
