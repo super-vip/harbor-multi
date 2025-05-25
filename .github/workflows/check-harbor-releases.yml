@@ -37,12 +37,14 @@ jobs:
           
           response = requests.get(HARBOR_RELEASES_URL)
           releases = response.json()
+          # 只保留正式发布版本（非预发布）
+          stable_releases = [r for r in releases if not r.get("prerelease", False)]
           
-          if not releases or "tag_name" not in releases[0]:
-              print("No releases found or API response invalid.")
+          if not stable_releases or "tag_name" not in stable_releases[0]:
+              print("No stable releases found or API response invalid.")
               exit(1)
           
-          new_release = releases[0]
+          new_release = stable_releases[0]
           new_tag = new_release["tag_name"]
           release_notes = new_release.get("body", "No release notes provided.")
           
