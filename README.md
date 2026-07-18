@@ -15,6 +15,11 @@
 
 >arm镜像由[IabSDocker修改部分官方源码中的文件而来](https://gitlab.ayou.ink/IabSDocker/Harbor)对于核心源码并没有改动，只是对于在arm环境执行 `make package_offline` 打包命令时的报错对部分Makefile、Dockerfile.base进行了修改
 
+# 适配国产信创ARM环境
+[Redis 在启动时，jemalloc 内存分配器发现当前系统的 page size（页大小）不是它支持的大小，因此无法正常初始化。](https://github.com/IabSDocker/harbor/issues/4)
+
+[信创下载链接包含(ITAII)](https://github.com/IabSDocker/harbor/releases)
+
 # 食用方法二选一
 ## 一、以安装harbor v2.12.0为例
 ```
